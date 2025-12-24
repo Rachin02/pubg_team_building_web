@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PUBG Team Lottery</title>
+  <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>PUBG Mobile Team Lottery</h1>
+        <p class="sub">Dynamic teams • each team = 1 player from Group A + 1 player from Group B • no repeated players</p>
+      </div>
+
+      <div class="pillbar">
+        <div class="pill"><span class="dot"></span>Random pairing</div>
+        <div class="pill"><span class="dot" style="background:var(--accent); box-shadow:0 0 0 4px rgba(124,92,255,0.12)"></span>No duplicate picks</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Setup + Controls -->
+      <section class="panel">
+        <div class="hd">
+          <h2>Players Setup</h2>
+          <span class="badge" id="countBadge">A: 0 / B: 0</span>
+        </div>
+
+        <div class="bd">
+          <div class="inputs">
+            <div>
+              <label>
+                Group A
+                <span class="badge" id="remainA">Remaining: 0</span>
+              </label>
+              <textarea id="groupA" spellcheck="false"
+                placeholder="Enter names (one per line)"></textarea>
+            </div>
+
+            <div>
+              <label>
+                Group B
+                <span class="badge" id="remainB">Remaining: 0</span>
+              </label>
+              <textarea id="groupB" spellcheck="false"
+                placeholder="Enter names (one per line)"></textarea>
+            </div>
+          </div>
+
+          <div class="hint">
+            Tip: Put <b>one name per line</b>. You can change names anytime before generating the first team.
+          </div>
+
+          <div class="controls">
+            <button class="btn-primary" id="btnGenerate" type="button">
+              <span>🎲</span> Generate Team
+            </button>
+
+            <button class="btn-ghost" id="btnAuto" type="button" title="Generate all remaining teams at once">
+              <span>⚡</span> Generate All
+            </button>
+
+            <button class="btn-danger" id="btnReset" type="button">
+              <span>🧹</span> Reset
+            </button>
+
+            <div class="status" id="statusBox">
+              <span>Teams made:</span>
+              <b id="madeCount">0</b>
+              <span id="totalTeams"> / 0</span>
+            </div>
+          </div>
+
+          <div class="msg" id="msgBox"></div>
+
+          <div class="footer">
+            Works offline. Just open this file in any browser.
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Teams -->
+      <section class="panel">
+        <div class="hd">
+          <h2>Generated Teams</h2>
+          <span class="badge" id="progressBadge">0 / 0</span>
+        </div>
+        <div class="bd">
+          <div class="teams" id="teamsList">
+            <!-- team cards appear here -->
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- TOURNAMENT FIXTURE -->
+    <section class="tournament-section" id="tournamentSection" style="display:none;">
+      <div class="tournament-header">
+        <h2>🏆 Tournament Fixture</h2>
+        <button class="btn-ghost" id="btnGenerateTournament">
+          <span>⚡</span> Generate Tournament Bracket
+        </button>
+      </div>
+
+      <div class="tournament-bracket">
+        <!-- GROUP STAGE -->
+        <div class="bracket-stage">
+          <h3 class="stage-title">Group Stage</h3>
+          <div class="bracket-groups" id="groupStage">
+            <!-- Groups will be generated here -->
+          </div>
+        </div>
+
+        <!-- KNOCKOUT STAGES -->
+        <div class="bracket-stage">
+          <h3 class="stage-title">Quarter Finals</h3>
+          <div class="bracket-matches" id="quarterFinals">
+            <!-- Quarter final matches -->
+          </div>
+        </div>
+
+        <div class="bracket-stage">
+          <h3 class="stage-title">Semi Finals</h3>
+          <div class="bracket-matches" id="semiFinals">
+            <!-- Semi final matches -->
+          </div>
+        </div>
+
+        <div class="bracket-stage">
+          <h3 class="stage-title">Final</h3>
+          <div class="bracket-matches" id="final">
+            <!-- Final match -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ----- No default names - users provide their own -----
+    const defaultA = [];
+    const defaultB = [];
+
+    const elA = document.getElementById("groupA");
+    const elB = document.getElementById("groupB");
+    const btnGenerate = document.getElementById("btnGenerate");
+    const btnReset = document.getElementById("btnReset");
+    const btnAuto = document.getElementById("btnAuto");
+
+    const teamsList = document.getElementById("teamsList");
+    const msgBox = document.getElementById("msgBox");
+    const madeCountEl = document.getElementById("madeCount");
+    const progressBadge = document.getElementById("progressBadge");
+    const countBadge = document.getElementById("countBadge");
+    const remainA = document.getElementById("remainA");
+    const remainB = document.getElementById("remainB");
+    const totalTeamsEl = document.getElementById("totalTeams");
+
+    let poolA = [];
+    let poolB = [];
+    let madeTeams = 0;
+    let maxTeams = 0;
+    let locked = false; // once first team generated, lock in the pools unless reset
+    let allTeams = []; // Store all generated teams for tournament
+
+    function setMessage(text, type=""){
+      msgBox.style.display = "block";
+      msgBox.className = "msg " + (type || "");
+      msgBox.textContent = text;
+    }
+    function clearMessage(){
+      msgBox.style.display = "none";
+      msgBox.textContent = "";
+      msgBox.className = "msg";
+    }
+
+    function parseNames(raw){
+      return raw
+        .split("\n")
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function fisherYatesShuffle(arr){
+      for(let i = arr.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function updateCounters(){
+      const namesA = parseNames(elA.value);
+      const namesB = parseNames(elB.value);
+      countBadge.textContent = `A: ${namesA.length} / B: ${namesB.length}`;
+
+      remainA.textContent = `Remaining: ${locked ? poolA.length : namesA.length}`;
+      remainB.textContent = `Remaining: ${locked ? poolB.length : namesB.length}`;
+
+      // Calculate max teams based on minimum of both groups
+      if(!locked){
+        maxTeams = Math.min(namesA.length, namesB.length);
+      }
+
+      madeCountEl.textContent = String(madeTeams);
+      totalTeamsEl.textContent = ` / ${maxTeams}`;
+      progressBadge.textContent = `${madeTeams} / ${maxTeams}`;
+
+      const done = madeTeams >= maxTeams;
+      btnGenerate.disabled = done;
+      btnAuto.disabled = done;
+    }
+
+    function validateBeforeStart(){
+      const namesA = parseNames(elA.value);
+      const namesB = parseNames(elB.value);
+
+      if(namesA.length === 0 || namesB.length === 0){
+        setMessage("Please enter at least one name in both Group A and Group B (one per line).", "err");
+        return false;
+      }
+
+      if(namesA.length !== namesB.length){
+        setMessage(`Group A has ${namesA.length} names and Group B has ${namesB.length} names. Note: Only ${Math.min(namesA.length, namesB.length)} teams can be created.`, "warn");
+      }
+
+      // Optional: ensure uniqueness inside each group (helps avoid confusion)
+      const dupA = new Set(namesA).size !== namesA.length;
+      const dupB = new Set(namesB).size !== namesB.length;
+      if(dupA || dupB){
+        setMessage("Each group should have unique names (no duplicates). Please fix duplicates and try again.", "err");
+        return false;
+      }
+
+      clearMessage();
+      return true;
+    }
+
+    function initPoolsIfNeeded(){
+      if(locked) return true;
+
+      if(!validateBeforeStart()) return false;
+
+      poolA = fisherYatesShuffle(parseNames(elA.value).slice());
+      poolB = fisherYatesShuffle(parseNames(elB.value).slice());
+      locked = true;
+
+      setMessage("Pools locked & shuffled! Now click Generate Team to create teams.", "ok");
+      return true;
+    }
+
+    function renderTeamCard(teamNo, a, b){
+      const card = document.createElement("div");
+      card.className = "teamcard";
+      card.innerHTML = `
+        <div class="teamleft">
+          <div class="teamno">
+            <span class="tag">TEAM ${teamNo}</span>
+            <span style="color: rgba(234,240,255,0.75); font-weight:700;">•</span>
+            <span style="color: rgba(234,240,255,0.85); font-weight:800;">${a} + ${b}</span>
+          </div>
+          <div class="members">
+            <div><b>Group A:</b> ${a}</div>
+            <div><b>Group B:</b> ${b}</div>
+            <small>Picked randomly • cannot be picked again</small>
+          </div>
+        </div>
+        <div class="rightmini">
+          <div>Remaining A: <b>${poolA.length}</b></div>
+          <div>Remaining B: <b>${poolB.length}</b></div>
+        </div>
+      `;
+      teamsList.prepend(card); // newest on top
+    }
+
+    function generateOneTeam(){
+      if(madeTeams >= maxTeams){
+        setMessage(`All ${maxTeams} teams are already generated. Press Reset to start again.`, "ok");
+        return;
+      }
+      if(!initPoolsIfNeeded()) return;
+
+      if(poolA.length === 0 || poolB.length === 0){
+        setMessage("No players left in one of the groups. Press Reset to start again.", "err");
+        return;
+      }
+
+      const a = poolA.pop();
+      const b = poolB.pop();
+      madeTeams += 1;
+
+      // Store team data
+      allTeams.push({ number: madeTeams, playerA: a, playerB: b, name: `Team ${madeTeams}` });
+
+      renderTeamCard(madeTeams, a, b);
+
+      if(madeTeams === maxTeams){
+        setMessage(`✅ Done! All ${maxTeams} teams are generated. Press Reset to run a new lottery.`, "ok");
+        // Show tournament section if we have enough teams
+        if(maxTeams >= 4){
+          document.getElementById("tournamentSection").style.display = "block";
+        }
+      } else {
+        clearMessage();
+      }
+
+      updateCounters();
+    }
+
+    function generateAllTeams(){
+      // generate remaining teams quickly
+      if(!initPoolsIfNeeded()) return;
+      while(madeTeams < maxTeams && poolA.length > 0 && poolB.length > 0){
+        generateOneTeam();
+      }
+    }
+
+    function resetAll(){
+      poolA = [];
+      poolB = [];
+      madeTeams = 0;
+      maxTeams = 0;
+      locked = false;
+      allTeams = [];
+      teamsList.innerHTML = "";
+      document.getElementById("tournamentSection").style.display = "none";
+      clearMessage();
+      updateCounters();
+    }
+
+    // ----- Tournament Generation -----
+    function generateTournament(){
+      if(allTeams.length < 4){
+        alert("Need at least 4 teams to generate a tournament!");
+        return;
+      }
+
+      const teams = [...allTeams];
+      
+      // Dynamically determine number of groups based on team count
+      let groups = [];
+      let numGroups = 1;
+      
+      if(teams.length <= 4){
+        // For 4 teams, just 1 group
+        groups = [teams];
+        numGroups = 1;
+      } else if(teams.length === 9 || teams.length === 12){
+        // For exactly 9 or 12 teams, create 3 groups
+        numGroups = 3;
+        groups = Array.from({length: numGroups}, () => []);
+        teams.forEach((team, i) => {
+          groups[i % numGroups].push(team);
+        });
+      } else {
+        // For 5,6,7,8,10,11 teams or any other count, create 2 groups
+        numGroups = 2;
+        groups = Array.from({length: numGroups}, () => []);
+        teams.forEach((team, i) => {
+          groups[i % numGroups].push(team);
+        });
+      }
+
+      // Render Group Stage with clearer display
+      const groupStage = document.getElementById("groupStage");
+      groupStage.innerHTML = "";
+      groups.forEach((group, i) => {
+        const groupDiv = document.createElement("div");
+        groupDiv.className = "group-box";
+        const groupLabel = numGroups === 1 ? 'Group Stage' : `Group ${String.fromCharCode(65 + i)}`;
+        let groupHTML = `<div class="group-name">${groupLabel}</div>`;
+        group.forEach((t, idx) => {
+          const position = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+          groupHTML += `<div class="bracket-team rank-${idx + 1}"><strong>${position} ${t.name}</strong><br><small>🎮 ${t.playerA}</small><br><small>🎮 ${t.playerB}</small></div>`;
+        });
+        groupDiv.innerHTML = groupHTML;
+        groupStage.appendChild(groupDiv);
+      });
+
+      // Generate knockout stages based on number of groups
+      // Prioritize checking numGroups first, then team count
+      if(numGroups === 3){
+        // 3 Groups scenario - 9+ teams divisible by 3
+        const groupA = groups[0];
+        const groupB = groups[1];
+        const groupC = groups[2];
+
+        const a1 = groupA[0], a2 = groupA[1];
+        const b1 = groupB[0], b2 = groupB[1];
+        const c1 = groupC[0], c2 = groupC[1];
+
+        // Quarter Finals (6 teams qualify)
+        const qf = document.getElementById("quarterFinals");
+        qf.innerHTML = `
+          <div class="match-box">
+            <div class="match-label">QF 1</div>
+            <div class="bracket-team"><strong>🥇 ${a1.name}</strong><br><small>Winner Group A</small><br><small>🎮 ${a1.playerA} + ${a1.playerB}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🥈 ${c2.name}</strong><br><small>Runner-up Group C</small><br><small>🎮 ${c2.playerA} + ${c2.playerB}</small></div>
+          </div>
+          <div class="match-box">
+            <div class="match-label">QF 2</div>
+            <div class="bracket-team"><strong>🥇 ${b1.name}</strong><br><small>Winner Group B</small><br><small>🎮 ${b1.playerA} + ${b1.playerB}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🥈 ${a2.name}</strong><br><small>Runner-up Group A</small><br><small>🎮 ${a2.playerA} + ${a2.playerB}</small></div>
+          </div>
+          <div class="match-box">
+            <div class="match-label">QF 3</div>
+            <div class="bracket-team"><strong>🥇 ${c1.name}</strong><br><small>Winner Group C</small><br><small>🎮 ${c1.playerA} + ${c1.playerB}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🥈 ${b2.name}</strong><br><small>Runner-up Group B</small><br><small>🎮 ${b2.playerA} + ${b2.playerB}</small></div>
+          </div>
+        `;
+
+        // Semi Finals
+        const sf = document.getElementById("semiFinals");
+        sf.innerHTML = `
+          <div class="match-box">
+            <div class="match-label">SF 1</div>
+            <div class="bracket-team"><strong>🏆 Winner QF 1</strong><br><small>${a1.name} vs ${c2.name}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🏆 Winner QF 2</strong><br><small>${b1.name} vs ${a2.name}</small></div>
+          </div>
+          <div class="match-box">
+            <div class="match-label">SF 2</div>
+            <div class="bracket-team"><strong>🏆 Winner QF 3</strong><br><small>${c1.name} vs ${b2.name}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>3rd Placed Team</strong></div>
+          </div>
+        `;
+
+        // Final
+        const final = document.getElementById("final");
+        final.innerHTML = `
+          <div class="match-box final-match">
+            <div class="match-label">🎖️ FINAL 🎖️</div>
+            <div class="bracket-team champion-team"><strong>🥇 Winner SF 1</strong></div>
+            <div class="vs-divider final-vs">VS</div>
+            <div class="bracket-team champion-team"><strong>🥇 Winner SF 2</strong></div>
+          </div>
+        `;
+
+      } else if(numGroups === 2 && teams.length >= 8){
+        // 2 Groups with 8+ teams
+        const groupA = groups[0];
+        const groupB = groups[1];
+        
+        const a1 = groupA[0], a2 = groupA[1];
+        const b1 = groupB[0], b2 = groupB[1];
+
+        // Quarter Finals
+        const qf = document.getElementById("quarterFinals");
+        qf.innerHTML = `
+          <div class="match-box">
+            <div class="match-label">QF 1</div>
+            <div class="bracket-team"><strong>🥇 ${a1.name}</strong><br><small>Winner Group A</small><br><small>🎮 ${a1.playerA} + ${a1.playerB}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🥈 ${b2.name}</strong><br><small>Runner-up Group B</small><br><small>🎮 ${b2.playerA} + ${b2.playerB}</small></div>
+          </div>
+          <div class="match-box">
+            <div class="match-label">QF 2</div>
+            <div class="bracket-team"><strong>🥇 ${b1.name}</strong><br><small>Winner Group B</small><br><small>🎮 ${b1.playerA} + ${b1.playerB}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🥈 ${a2.name}</strong><br><small>Runner-up Group A</small><br><small>🎮 ${a2.playerA} + ${a2.playerB}</small></div>
+          </div>
+          <div class="match-box">
+            <div class="match-label">QF 3</div>
+            <div class="bracket-team"><strong>3rd ${groupA[2]?.name || 'TBD'}</strong><br><small>3rd Place Group A</small><br><small>${groupA[2] ? '🎮 ' + groupA[2].playerA + ' + ' + groupA[2].playerB : ''}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>3rd ${groupB[2]?.name || 'TBD'}</strong><br><small>3rd Place Group B</small><br><small>${groupB[2] ? '🎮 ' + groupB[2].playerA + ' + ' + groupB[2].playerB : ''}</small></div>
+          </div>
+          <div class="match-box">
+            <div class="match-label">QF 4</div>
+            <div class="bracket-team"><strong>4th ${groupA[3]?.name || 'TBD'}</strong><br><small>4th Place Group A</small><br><small>${groupA[3] ? '🎮 ' + groupA[3].playerA + ' + ' + groupA[3].playerB : ''}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>4th ${groupB[3]?.name || 'TBD'}</strong><br><small>4th Place Group B</small><br><small>${groupB[3] ? '🎮 ' + groupB[3].playerA + ' + ' + groupB[3].playerB : ''}</small></div>
+          </div>
+        `;
+
+        // Semi Finals
+        const sf = document.getElementById("semiFinals");
+        sf.innerHTML = `
+          <div class="match-box">
+            <div class="match-label">SF 1</div>
+            <div class="bracket-team"><strong>🏆 Winner QF 1</strong><br><small>${a1.name} vs ${b2.name}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🏆 Winner QF 2</strong><br><small>${b1.name} vs ${a2.name}</small></div>
+          </div>
+          <div class="match-box">
+            <div class="match-label">SF 2</div>
+            <div class="bracket-team"><strong>🏆 Winner QF 3</strong></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🏆 Winner QF 4</strong></div>
+          </div>
+        `;
+
+        // Final
+        const final = document.getElementById("final");
+        final.innerHTML = `
+          <div class="match-box final-match">
+            <div class="match-label">🎖️ FINAL 🎖️</div>
+            <div class="bracket-team champion-team"><strong>🥇 Winner SF 1</strong></div>
+            <div class="vs-divider final-vs">VS</div>
+            <div class="bracket-team champion-team"><strong>🥇 Winner SF 2</strong></div>
+          </div>
+        `;
+
+      } else if(teams.length >= 4){
+        // For 4-7 teams, semi-finals only
+        const qf = document.getElementById("quarterFinals");
+        qf.innerHTML = `<div class="info-text">⚠️ Quarter Finals not needed for ${teams.length} teams<br/>Proceeding directly to Semi-Finals with Top ${Math.min(4, teams.length)} teams</div>`;
+        
+        const finalist1 = groups[0][0];
+        const finalist2 = groups[0][1];
+        const finalist3 = groups[0][2];
+        const finalist4 = groups[0][3];
+
+        const sf = document.getElementById("semiFinals");
+        let sfHTML = `
+          <div class="match-box">
+            <div class="match-label">SF 1</div>
+            <div class="bracket-team"><strong>🥇 ${finalist1.name}</strong><br><small>1st Place</small><br><small>🎮 ${finalist1.playerA} + ${finalist1.playerB}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🥈 ${finalist2.name}</strong><br><small>2nd Place</small><br><small>🎮 ${finalist2.playerA} + ${finalist2.playerB}</small></div>
+          </div>`;
+        
+        if(finalist3 && finalist4){
+          sfHTML += `
+          <div class="match-box">
+            <div class="match-label">SF 2</div>
+            <div class="bracket-team"><strong>🥉 ${finalist3.name}</strong><br><small>3rd Place</small><br><small>🎮 ${finalist3.playerA} + ${finalist3.playerB}</small></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>4th ${finalist4.name}</strong><br><small>4th Place</small><br><small>🎮 ${finalist4.playerA} + ${finalist4.playerB}</small></div>
+          </div>`;
+        }
+        
+        sf.innerHTML = sfHTML;
+
+        const final = document.getElementById("final");
+        final.innerHTML = `
+          <div class="match-box final-match">
+            <div class="match-label">🎖️ FINAL 🎖️</div>
+            <div class="bracket-team champion-team"><strong>🥇 Winner SF 1</strong></div>
+            <div class="vs-divider final-vs">VS</div>
+            <div class="bracket-team champion-team"><strong>🥇 Winner SF 2</strong></div>
+          </div>
+        `;
+      }
+    }
+
+    // ----- Events -----
+    btnGenerate.addEventListener("click", generateOneTeam);
+    btnAuto.addEventListener("click", generateAllTeams);
+    btnReset.addEventListener("click", resetAll);
+    document.getElementById("btnGenerateTournament").addEventListener("click", generateTournament);
+
+    // Update counts live (only pools lock after first generation)
+    elA.addEventListener("input", () => { if(!locked) updateCounters(); });
+    elB.addEventListener("input", () => { if(!locked) updateCounters(); });
+
+    // ----- Init -----
+    elA.value = defaultA.join("\n");
+    elB.value = defaultB.join("\n");
+    updateCounters();
+  </script>
+
+  <!-- Footer -->
+  <footer class="page-footer">
+    <p>Developed by <strong>Rachin</strong></p>
+  </footer>
+</body>
+</html>
