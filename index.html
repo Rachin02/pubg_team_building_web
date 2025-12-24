@@ -392,26 +392,26 @@
         const b1 = groupB[0], b2 = groupB[1];
         const c1 = groupC[0], c2 = groupC[1];
 
-        // Quarter Finals (6 teams qualify)
+        // Quarter Finals - Winners only from each group
         const qf = document.getElementById("quarterFinals");
         qf.innerHTML = `
           <div class="match-box">
             <div class="match-label">QF 1</div>
-            <div class="bracket-team"><strong>🥇 ${a1.name}</strong><br><small>Winner Group A</small><br><small>🎮 ${a1.playerA} + ${a1.playerB}</small></div>
+            <div class="bracket-team"><strong>🥇 Winner Group A</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>🥈 ${c2.name}</strong><br><small>Runner-up Group C</small><br><small>🎮 ${c2.playerA} + ${c2.playerB}</small></div>
+            <div class="bracket-team"><strong>🥇 Winner Group B</strong></div>
           </div>
           <div class="match-box">
             <div class="match-label">QF 2</div>
-            <div class="bracket-team"><strong>🥇 ${b1.name}</strong><br><small>Winner Group B</small><br><small>🎮 ${b1.playerA} + ${b1.playerB}</small></div>
+            <div class="bracket-team"><strong>🥇 Winner Group C</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>🥈 ${a2.name}</strong><br><small>Runner-up Group A</small><br><small>🎮 ${a2.playerA} + ${a2.playerB}</small></div>
+            <div class="bracket-team"><strong>🥈 Runner-up Group A</strong></div>
           </div>
           <div class="match-box">
             <div class="match-label">QF 3</div>
-            <div class="bracket-team"><strong>🥇 ${c1.name}</strong><br><small>Winner Group C</small><br><small>🎮 ${c1.playerA} + ${c1.playerB}</small></div>
+            <div class="bracket-team"><strong>🥈 Runner-up Group B</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>🥈 ${b2.name}</strong><br><small>Runner-up Group B</small><br><small>🎮 ${b2.playerA} + ${b2.playerB}</small></div>
+            <div class="bracket-team"><strong>🥈 Runner-up Group C</strong></div>
           </div>
         `;
 
@@ -420,13 +420,13 @@
         sf.innerHTML = `
           <div class="match-box">
             <div class="match-label">SF 1</div>
-            <div class="bracket-team"><strong>🏆 Winner QF 1</strong><br><small>${a1.name} vs ${c2.name}</small></div>
+            <div class="bracket-team"><strong>🏆 Winner QF 1</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>🏆 Winner QF 2</strong><br><small>${b1.name} vs ${a2.name}</small></div>
+            <div class="bracket-team"><strong>🏆 Winner QF 2</strong></div>
           </div>
           <div class="match-box">
             <div class="match-label">SF 2</div>
-            <div class="bracket-team"><strong>🏆 Winner QF 3</strong><br><small>${c1.name} vs ${b2.name}</small></div>
+            <div class="bracket-team"><strong>🏆 Winner QF 3</strong></div>
             <div class="vs-divider">VS</div>
             <div class="bracket-team"><strong>3rd Placed Team</strong></div>
           </div>
@@ -443,8 +443,8 @@
           </div>
         `;
 
-      } else if(numGroups === 2 && teams.length >= 8){
-        // 2 Groups with 8+ teams
+      } else if(numGroups === 2 && teams.length > 8){
+        // 2 Groups with 9+ teams (Quarter Finals applicable)
         const groupA = groups[0];
         const groupB = groups[1];
         
@@ -456,27 +456,27 @@
         qf.innerHTML = `
           <div class="match-box">
             <div class="match-label">QF 1</div>
-            <div class="bracket-team"><strong>🥇 ${a1.name}</strong><br><small>Winner Group A</small><br><small>🎮 ${a1.playerA} + ${a1.playerB}</small></div>
+            <div class="bracket-team"><strong>🥇 Winner Group A</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>🥈 ${b2.name}</strong><br><small>Runner-up Group B</small><br><small>🎮 ${b2.playerA} + ${b2.playerB}</small></div>
+            <div class="bracket-team"><strong>🥇 Winner Group B</strong></div>
           </div>
           <div class="match-box">
             <div class="match-label">QF 2</div>
-            <div class="bracket-team"><strong>🥇 ${b1.name}</strong><br><small>Winner Group B</small><br><small>🎮 ${b1.playerA} + ${b1.playerB}</small></div>
+            <div class="bracket-team"><strong>🥈 Runner-up Group A</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>🥈 ${a2.name}</strong><br><small>Runner-up Group A</small><br><small>🎮 ${a2.playerA} + ${a2.playerB}</small></div>
+            <div class="bracket-team"><strong>🥈 Runner-up Group B</strong></div>
           </div>
           <div class="match-box">
             <div class="match-label">QF 3</div>
-            <div class="bracket-team"><strong>3rd ${groupA[2]?.name || 'TBD'}</strong><br><small>3rd Place Group A</small><br><small>${groupA[2] ? '🎮 ' + groupA[2].playerA + ' + ' + groupA[2].playerB : ''}</small></div>
+            <div class="bracket-team"><strong>🥉 3rd Place Group A</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>3rd ${groupB[2]?.name || 'TBD'}</strong><br><small>3rd Place Group B</small><br><small>${groupB[2] ? '🎮 ' + groupB[2].playerA + ' + ' + groupB[2].playerB : ''}</small></div>
+            <div class="bracket-team"><strong>🥉 3rd Place Group B</strong></div>
           </div>
           <div class="match-box">
             <div class="match-label">QF 4</div>
-            <div class="bracket-team"><strong>4th ${groupA[3]?.name || 'TBD'}</strong><br><small>4th Place Group A</small><br><small>${groupA[3] ? '🎮 ' + groupA[3].playerA + ' + ' + groupA[3].playerB : ''}</small></div>
+            <div class="bracket-team"><strong>4️⃣ 4th Place Group A</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>4th ${groupB[3]?.name || 'TBD'}</strong><br><small>4th Place Group B</small><br><small>${groupB[3] ? '🎮 ' + groupB[3].playerA + ' + ' + groupB[3].playerB : ''}</small></div>
+            <div class="bracket-team"><strong>4️⃣ 4th Place Group B</strong></div>
           </div>
         `;
 
@@ -485,9 +485,9 @@
         sf.innerHTML = `
           <div class="match-box">
             <div class="match-label">SF 1</div>
-            <div class="bracket-team"><strong>🏆 Winner QF 1</strong><br><small>${a1.name} vs ${b2.name}</small></div>
+            <div class="bracket-team"><strong>🏆 Winner QF 1</strong></div>
             <div class="vs-divider">VS</div>
-            <div class="bracket-team"><strong>🏆 Winner QF 2</strong><br><small>${b1.name} vs ${a2.name}</small></div>
+            <div class="bracket-team"><strong>🏆 Winner QF 2</strong></div>
           </div>
           <div class="match-box">
             <div class="match-label">SF 2</div>
@@ -498,6 +498,48 @@
         `;
 
         // Final
+        const final = document.getElementById("final");
+        final.innerHTML = `
+          <div class="match-box final-match">
+            <div class="match-label">🎖️ FINAL 🎖️</div>
+            <div class="bracket-team champion-team"><strong>🥇 Winner SF 1</strong></div>
+            <div class="vs-divider final-vs">VS</div>
+            <div class="bracket-team champion-team"><strong>🥇 Winner SF 2</strong></div>
+          </div>
+        `;
+
+      } else if(numGroups === 2 && teams.length <= 8){
+        // 2 Groups with 8 or less teams - Quarter Finals not applicable
+        const qf = document.getElementById("quarterFinals");
+        qf.innerHTML = `<div class="info-text">⚠️ Quarter Finals not needed for ${teams.length} teams<br/>Proceeding directly to Semi-Finals</div>`;
+        
+        const groupA = groups[0];
+        const groupB = groups[1];
+        
+        const a1 = groupA[0];
+        const b1 = groupB[0];
+
+        const sf = document.getElementById("semiFinals");
+        let sfHTML = `
+          <div class="match-box">
+            <div class="match-label">SF 1</div>
+            <div class="bracket-team"><strong>🥇 Winner Group A</strong></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🥇 Winner Group B</strong></div>
+          </div>`;
+        
+        if(groupA[1] && groupB[1]){
+          sfHTML += `
+          <div class="match-box">
+            <div class="match-label">SF 2</div>
+            <div class="bracket-team"><strong>🥈 Runner-up Group A</strong></div>
+            <div class="vs-divider">VS</div>
+            <div class="bracket-team"><strong>🥈 Runner-up Group B</strong></div>
+          </div>`;
+        }
+        
+        sf.innerHTML = sfHTML;
+
         const final = document.getElementById("final");
         final.innerHTML = `
           <div class="match-box final-match">
